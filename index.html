@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAHED EARN</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      display: grid; place-items: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg,#101b38,#145b78);
+      color: #fff;
+    }
+    .card {
+      width: 100%; max-width: 390px;
+      padding: 28px; border-radius: 22px;
+      background: #17243a;
+      box-shadow: 0 15px 45px #0005;
+    }
+    .logo { text-align:center; font-size:30px; font-weight:bold; }
+    .sub { text-align:center; color:#b9c9dc; margin:10px 0 24px; }
+    label { display:block; margin:14px 0 7px; }
+    input {
+      width:100%; padding:13px;
+      border-radius:10px; border:1px solid #43536c;
+      background:#0f192b; color:white; font-size:16px;
+    }
+    button {
+      width:100%; padding:13px; margin-top:14px;
+      border:0; border-radius:10px;
+      background:#32d6a0; color:#08251e;
+      font-size:16px; font-weight:bold;
+    }
+    .secondary { background:#293b55; color:white; }
+    #message { font-size:14px; line-height:1.6; overflow-wrap:anywhere; }
+    .note { font-size:12px; color:#b9c9dc; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">SAHED EARN</div>
+    <p class="sub">শিখুন • কাজ করুন • আয়ের সুযোগ তৈরি করুন</p>
+
+    <label for="email">ইমেইল</label>
+    <input id="email" type="email"
+      autocomplete="email" placeholder="তোমার ইমেইল" required>
+
+    <label for="password">পাসওয়ার্ড</label>
+    <input id="password" type="password"
+      autocomplete="current-password"
+      placeholder="কমপক্ষে ৮ অক্ষর" minlength="8" required>
+
+    <button id="signup">নতুন অ্যাকাউন্ট তৈরি</button>
+    <button id="login" class="secondary">লগইন</button>
+    <button id="logout" class="secondary" hidden>লগআউট</button>
+
+    <p id="message" role="status" aria-live="polite">
+      শুরু করতে তোমার ইমেইল ও পাসওয়ার্ড দাও।
+    </p>
+
+    <p class="note">
+      এটি প্রাথমিক পরীক্ষামূলক সংস্করণ। এখনো কোনো আয় বা
+      পেমেন্ট নিশ্চিত নয়। নিজের অ্যাকাউন্ট ব্যবহার করো।
+    </p>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // Supabase Dashboard → Connect থেকে URL ও publishable key নাও।
+    const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_URL';
+    const SUPABASE_KEY = 'PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY';
+
+    const message = document.getElementById('message');
+    const signup = document.getElementById('signup');
+    const login = document.getElementById('login');
+    const logout = document.getElementById('logout');
+
+    function show(text) {
+      message.textContent = text;
+    }
+
+    if (
+      !SUPABASE_URL.startsWith('https://') ||
+      SUPABASE_URL.includes('PASTE_') ||
+      SUPABASE_KEY.includes('PASTE_')
+    ) {
+      show('প্রথমে কোডে তোমার Supabase URL ও publishable key বসাও।');
+      signup.disabled = true;
+      login.disabled = true;
+    } else {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      async function updateUI() {
+        const { data, error } = await supabase.auth.getUser();
+        if (error && error.name !== 'AuthSessionMissingError') {
+          show('অ্যাকাউন্টের অবস্থা যাচাই করা যায়নি।');
+          return;
+        }
+        const user = data?.user;
+        signup.hidden = !!user;
+        login.hidden = !!user;
+        logout.hidden = !user;
+        show(user ? 'লগইন সফল! ইমেইল: ' + user.email
+                  : 'ইমেইল ও পাসওয়ার্ড দিয়ে শুরু করো।');
+      }
+
+      signup.addEventListener('click', async () => {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        if (!email || password.length < 8) {
+          show('সঠিক ইমেইল এবং অন্তত ৮ অক্ষরের পাসওয়ার্ড দাও।');
+          return;
+        }
+        signup.disabled = true;
+        show('অ্যাকাউন্ট তৈরি হচ্ছে...');
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email, password
+          });
+          if (error) throw error;
+          show(data.session
+            ? 'অ্যাকাউন্ট তৈরি হয়েছে!'
+            : 'অ্যাকাউন্টের অনুরোধ সফল। ইমেইল যাচাই করে নিশ্চিত করো।');
+          await updateUI();
+        } catch (e) {
+          show('অ্যাকাউন্ট তৈরি হয়নি: ' + e.message);
+        } finally {
+          signup.disabled = false;
+        }
+      });
+
+      login.addEventListener('click', async () => {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        if (!email || !password) {
+          show('ইমেইল ও পাসওয়ার্ড দাও।');
+          return;
+        }
+        login.disabled = true;
+        show('লগইন হচ্ছে...');
+        try {
+          const { error } = await supabase.auth.signInWithPassword({
+            email, password
+          });
+          if (error) throw error;
+          await updateUI();
+        } catch (e) {
+          show('লগইন হয়নি: ' + e.message);
+        } finally {
+          login.disabled = false;
+        }
+      });
+
+      logout.addEventListener('click', async () => {
+        const { error } = await supabase.auth.signOut();
+        show(error ? 'লগআউট হয়নি: ' + error.message : 'লগআউট সফল।');
+        await updateUI();
+      });
+
+      updateUI();
+    }
+  </script>
+</body>
+</html>
